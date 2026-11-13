@@ -766,6 +766,8 @@ document
   .getElementById("stravaConnect")
   .addEventListener("click", () => {
 
+  alert("RUNDEX GITHUB VERSION");
+
 window.location.href =
   "https://www.strava.com/oauth/authorize" +
   "?client_id=297015" +
@@ -773,6 +775,7 @@ window.location.href =
   "&approval_prompt=force" +
   "&scope=read,activity:read_all,activity:write" +
   "&redirect_uri=https://heydonr.github.io/RUNDEX/";
+
   });
 
 /* ---------- boot ---------- */
