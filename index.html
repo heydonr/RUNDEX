@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RUNDEX — the runners' index</title>
+<style>
+/* ============================================================
+   RUNDEX prototype — single-file landing page + index simulator
+   Tokens
+   ============================================================ */
+:root{
+  --bg:#0f141b;        /* deep slate, not pure black */
+  --bg2:#161d27;       /* raised surfaces */
+  --bg3:#1e2733;       /* inputs, table stripes */
+  --line:#2a3542;
+  --text:#e6ecf2;
+  --muted:#8a97a6;
+  --up:#3fd98f;
+  --down:#f2634f;
+  --brand:#f3b63f;     /* amber ticker-tape */
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:"Avenir Next","Segoe UI",Helvetica,Arial,sans-serif;
+  --radius:10px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.5;font-size:16px}
+a{color:inherit}
+h1,h2,h3{margin:0 0 .4em;line-height:1.1;font-weight:700;letter-spacing:-.02em}
+h1{font-size:clamp(2.4rem,6vw,4.6rem)}
+h2{font-size:clamp(1.5rem,3vw,2.1rem)}
+h3{font-size:1.05rem}
+p{margin:0 0 1em;max-width:62ch}
+.muted{color:var(--muted)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.up{color:var(--up)} .down{color:var(--down)} .flat{color:var(--muted)}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+section{padding:64px 0}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;background:var(--bg3);border:1px solid var(--line);border-radius:8px;padding:9px 14px}
+button:hover{border-color:var(--muted)}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+button.primary{background:var(--brand);color:#1a1200;border-color:var(--brand);font-weight:600}
+button.primary:hover{filter:brightness(1.08)}
+button.active{border-color:var(--brand);color:var(--brand)}
+input,select{background:var(--bg3);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:4px}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);padding:20px}
+
+/* ---------- ticker tape ---------- */
+.tape{overflow:hidden;border-bottom:1px solid var(--line);background:#0b0f14;white-space:nowrap}
+.tape-inner{display:inline-block;padding:8px 0;font-family:var(--mono);font-size:.9rem;animation:tape 40s linear infinite}
+.tape-inner span{margin-right:48px}
+@keyframes tape{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.tape-inner{animation:none}}
+
+/* ---------- hero ---------- */
+.hero{padding:80px 0 56px}
+.hero-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:48px;align-items:center}
+.brand{font-family:var(--mono);color:var(--brand);font-weight:700;letter-spacing:.08em;margin-bottom:12px}
+.hero .lede{font-size:1.2rem;color:var(--muted)}
+.hero-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
+.big-value{font-family:var(--mono);font-size:clamp(3rem,8vw,5.4rem);font-weight:700;line-height:1;letter-spacing:-.03em}
+.big-change{font-family:var(--mono);font-size:1.4rem;margin-top:6px}
+
+/* phone / activity mock */
+.phone{background:#fff;color:#1b1b1b;border-radius:22px;padding:18px;box-shadow:0 30px 60px rgba(0,0,0,.45);max-width:360px;margin:0 auto}
+.phone .who{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.phone .avatar{width:36px;height:36px;border-radius:50%;background:#fc5200}
+.phone .name{font-weight:600;font-size:.95rem}
+.phone .meta{font-size:.78rem;color:#666}
+.phone .title{font-weight:700;margin:4px 0}
+.phone .desc{font-size:.9rem;color:#333;white-space:pre-line}
+.phone .stamp{font-family:var(--mono);background:#fff7e3;border-left:3px solid var(--brand);padding:6px 8px;margin-top:8px;font-size:.85rem}
+.phone .stats{display:flex;gap:18px;margin:12px 0;border-top:1px solid #eee;border-bottom:1px solid #eee;padding:10px 0}
+.phone .stats div{font-size:.72rem;color:#777}
+.phone .stats b{display:block;font-size:1.05rem;color:#111;font-family:var(--mono)}
+.phone .map{height:110px;border-radius:10px;background:
+  linear-gradient(135deg,#e9efe4,#dfe8dd);position:relative;overflow:hidden}
+.phone .map svg{position:absolute;inset:0;width:100%;height:100%}
+
+/* ---------- how it works ---------- */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.steps .card b{font-family:var(--mono);color:var(--brand);display:block;margin-bottom:8px}
+
+/* ---------- what moves ---------- */
+.moves{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.moves .card{display:flex;gap:12px;align-items:flex-start}
+.moves .sign{font-family:var(--mono);font-weight:700;font-size:1.3rem;min-width:28px}
+
+/* ---------- signup ---------- */
+.signup form{display:flex;gap:10px;max-width:480px}
+.signup input{flex:1}
+
+/* ---------- simulator ---------- */
+.sim{border-top:1px solid var(--line);background:#0c1117}
+.sim-grid{display:grid;grid-template-columns:300px 1fr;gap:20px}
+.sim-left{display:flex;flex-direction:column;gap:16px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.presets{display:flex;flex-direction:column;gap:8px}
+.presets button{text-align:left}
+.controls{display:flex;gap:8px;flex-wrap:wrap}
+.valuebar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.valuebar .cur{font-family:var(--mono);font-size:3rem;font-weight:700;line-height:1}
+.valuebar .sub{font-family:var(--mono);color:var(--muted);font-size:.85rem}
+.chart{width:100%;height:280px;display:block;margin-top:14px}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .axis{fill:var(--muted);font:11px var(--mono)}
+.chart .line{fill:none;stroke:var(--brand);stroke-width:2}
+.chart .fair{fill:none;stroke:var(--muted);stroke-width:1.5;stroke-dasharray:4 4}
+.chart .area{fill:var(--brand);opacity:.08}
+.chart .dot-run{fill:var(--up)}
+.chart .dot-race{fill:var(--brand)}
+.chart .cursor{stroke:var(--muted);stroke-dasharray:3 3}
+.tooltip{font:12px var(--mono);background:var(--bg3);border:1px solid var(--line);border-radius:6px;padding:6px 8px;position:absolute;pointer-events:none;display:none;white-space:nowrap}
+.chart-wrap{position:relative}
+.breakdown{display:grid;grid-template-columns:150px 1fr 70px;gap:8px 12px;align-items:center;font-size:.9rem}
+.bar{height:10px;background:var(--bg3);border-radius:5px;position:relative;overflow:hidden}
+.bar i{position:absolute;top:0;bottom:0;left:50%;display:block}
+.bar i.up{background:var(--up)} .bar i.down{background:var(--down)}
+.stamps{list-style:none;margin:0;padding:0;font-family:var(--mono);font-size:.85rem;max-height:200px;overflow:auto}
+.stamps li{padding:6px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:500}
+td.num,th.num{text-align:right}
+tr.me td{background:#2a2410}
+tr.me td:nth-child(2){color:var(--brand);font-weight:700}
+td.label{color:var(--muted);font-size:.8rem}
+.tag{font-family:var(--mono);font-size:.75rem;padding:2px 6px;border-radius:4px;background:var(--bg3)}
+.tag.race{background:#3a2d0b;color:var(--brand)}
+.tag.tempo{background:#0e2e3a;color:#6fd3f0}
+.tag.long{background:#1c2a3d;color:#9bb8ff}
+.sliders{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px}
+.sliders label{display:flex;justify-content:space-between;color:var(--text)}
+.sliders label span{font-family:var(--mono);color:var(--muted)}
+.sliders input[type=range]{width:100%;padding:0}
+details{border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;background:var(--bg2)}
+summary{cursor:pointer;font-weight:600}
+pre{font-family:var(--mono);font-size:.82rem;line-height:1.5;white-space:pre-wrap;color:#c9d3dd}
+.attrib{font-family:var(--mono);font-size:.75rem;color:var(--muted)}
+.note{font-size:.85rem;color:var(--muted)}
+footer{padding:32px 0;border-top:1px solid var(--line);font-size:.85rem;color:var(--muted)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--line);padding:10px 16px;border-radius:8px;display:none;z-index:9}
+
+@media (max-width:900px){
+  .hero-grid,.sim-grid,.steps,.moves,.sliders{grid-template-columns:1fr}
+  .hero{padding:48px 0 32px}
+  section{padding:44px 0}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= TICKER TAPE ================= -->
+<div class="tape" aria-hidden="true"><div class="tape-inner" id="tape"></div></div>
+
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="brand">RUNDEX</div>
+      <h1>Your running has a value. It moves every day.</h1>
+      <p class="lede">RUNDEX turns everything on your watch into one number. Run and it climbs. Run faster and it climbs more. Go quiet and it slides. Every activity gets stamped with the day's move.</p>
+      <div class="hero-actions">
+	<button
+    class="primary"
+    type="button"
+    id="stravaConnect">
+    Connect to Strava
+  </button>
+        <a href="#simulator"><button class="primary" type="button">Try the simulator</button></a>
+        <a href="#signup"><button type="button">Get early access</button></a>
+      </div>
+      <div style="margin-top:36px">
+        <div class="big-value" id="heroValue">1,000</div>
+        <div class="big-change up" id="heroChange">▲ 0.0%</div>
+        <div class="attrib">RORYH · sample runner</div>
+      </div>
+    </div>
+    <div>
+      <div class="phone" aria-label="Example activity with the RUNDEX line in its description">
+        <div class="who"><div class="avatar"></div><div><div class="name">Rory H.</div><div class="meta">Today at 6:42 AM · Edinburgh</div></div></div>
+        <div class="title">Morning tempo, legs felt sharp</div>
+        <div class="desc">Out along the water of Leith, 3×8 min at threshold.</div>
+        <div class="stamp" id="heroStamp">RUNDEX · RORYH 1,240 ▲1.2%</div>
+        <div class="stats"><div>Distance<b>12.1 km</b></div><div>Pace<b>4:38 /km</b></div><div>Time<b>56:08</b></div></div>
+        <div class="map"><svg viewBox="0 0 320 110" preserveAspectRatio="none"><path d="M10,90 C60,30 90,100 140,60 S220,20 260,70 S300,40 310,30" fill="none" stroke="#fc5200" stroke-width="3" stroke-linecap="round"/></svg></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ================= HOW IT WORKS ================= -->
+<section>
+  <div class="wrap">
+    <h2>How it works</h2>
+    <p class="muted">Three steps. No manual logging, ever.</p>
+    <div class="steps">
+      <div class="card"><b>1</b><h3>Connect your watch</h3><p>Link Garmin or COROS once. RUNDEX reads each run as it syncs.</p></div>
+      <div class="card"><b>2</b><h3>Run</h3><p>Easy days, long days, races. Everything counts, and rest days are allowed.</p></div>
+      <div class="card"><b>3</b><h3>Watch it move</h3><p>Your value updates, a one-line stamp lands in your Strava activity description, and your friends' board reshuffles.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= WHAT MOVES YOUR VALUE ================= -->
+<section>
+  <div class="wrap">
+    <h2>What moves your value</h2>
+    <p class="muted">Your routine sets a fair value and your number is pulled toward it. Do the same thing every week and it sits still; change something and it moves.</p>
+    <div class="moves">
+      <div class="card"><div class="sign up">+</div><div><h3>Volume</h3><p>Your average kilometres over the last four weeks set your fair value. Hold it and your value holds; lift it and your value follows.</p></div></div>
+      <div class="card"><div class="sign up">+</div><div><h3>Intensity</h3><p>A faster-than-usual day gives a bump that fades unless you keep it up.</p></div></div>
+      <div class="card"><div class="sign up">+</div><div><h3>Consistency</h3><p>Run days per week count as much as kilometres. Under two days a week and your fair value takes a cut.</p></div></div>
+      <div class="card"><div class="sign up">++</div><div><h3>Events</h3><p>A race or a personal best moves the value sharply.</p></div></div>
+      <div class="card"><div class="sign down">−</div><div><h3>Going quiet</h3><p>A small daily slide once you've been idle more than two days in a row. Ordinary rest days cost nothing.</p></div></div>
+      <div class="card"><div class="sign flat">±5</div><div><h3>Daily cap</h3><p>No single day moves you more than five percent either way.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SIGNUP ================= -->
+<section class="signup" id="signup">
+  <div class="wrap">
+    <h2>Get early access</h2>
+    <p class="muted">Leave an email and we'll send an invite when the watch connections go live.</p>
+    <form id="signupForm">
+      <input type="email" id="signupEmail" placeholder="you@example.com" required aria-label="Email address">
+      <button class="primary" type="submit">Request invite</button>
+    </form>
+    <p class="note" id="signupNote" style="margin-top:10px"></p>
+  </div>
+</section>
+
+<!-- ================= SIMULATOR ================= -->
+<section class="sim" id="simulator">
+  <div class="wrap">
+    <h2>Index simulator</h2>
+    <p class="muted">Feed in runs, step time forward, and watch the value move. Tune the formula until it feels right.</p>
+    <div class="attrib" style="margin-bottom:16px">data: Garmin Forerunner 265 (sample)</div>
+
+    <div class="sim-grid">
+      <!-- -------- left column -------- -->
+      <div class="sim-left">
+        <div class="card">
+          <h3>Runner</h3>
+          <div class="row">
+            <div><label for="ticker">Ticker</label><input id="ticker" value="RORYH" maxlength="6"></div>
+            <div><label for="startValue">Start value</label><input id="startValue" type="number" value="1000" min="100" step="10"></div>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <div><label for="age">Age</label><input id="age" type="number" value="34" min="14" max="90"></div>
+            <div><label for="sex">Sex</label><select id="sex"><option value="M">Male</option><option value="F">Female</option></select></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Sample runners</h3>
+          <div class="presets">
+            <button type="button" data-preset="default" class="active">8-week sample history (quiet week + race)</button>
+            <button type="button" data-preset="consistent">Consistent 30k/week</button>
+            <button type="button" data-preset="weekend">Weekend warrior</button>
+            <button type="button" data-preset="comeback">Comeback after injury</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Add a run</h3>
+          <form id="runForm">
+            <div class="row">
+              <div><label for="rDate">Date</label><input id="rDate" type="date" required></div>
+              <div><label for="rType">Type</label><select id="rType"><option value="easy">Easy</option><option value="tempo">Tempo</option><option value="long">Long</option><option value="race">Race</option></select></div>
+            </div>
+            <div class="row3" style="margin-top:10px">
+              <div><label for="rKm">km</label><input id="rKm" type="number" step="0.1" min="0.5" value="8" required></div>
+              <div><label for="rMin">min</label><input id="rMin" type="number" min="1" value="42" required></div>
+              <div><label for="rHr">avg HR</label><input id="rHr" type="number" min="60" max="220" placeholder="opt"></div>
+            </div>
+            <button class="primary" type="submit" style="margin-top:12px;width:100%">Add run</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>Time</h3>
+          <div class="num" style="font-size:1.1rem;margin-bottom:10px">Sim date: <span id="simDate"></span></div>
+          <div class="controls">
+            <button type="button" id="advDay">Advance one day</button>
+            <button type="button" id="advWeek">Advance one week</button>
+          </div>
+          <p class="note" style="margin:10px 0 0">Advancing without a run lets you watch the slide.</p>
+        </div>
+      </div>
+
+      <!-- -------- right column -------- -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card">
+          <h3>Friends</h3>
+          <table id="board"><thead><tr><th>#</th><th>Runner</th><th></th><th class="num">Value</th><th class="num">Today</th><th class="num">7 days</th><th class="num">Runs / 7d</th></tr></thead><tbody></tbody></table>
+          <p class="note" style="margin:10px 0 0">Everyone is scored with the same formula and the sliders below. Advance the clock and the whole board moves.</p>
+        </div>
+        <div class="card">
+          <div class="valuebar">
+            <div>
+              <div class="sub"><span id="curTicker">RORYH</span> · RDX</div>
+              <div class="cur" id="curValue">1,000</div>
+            </div>
+            <div style="text-align:right">
+              <div class="num" id="curChange" style="font-size:1.5rem">▲ 0.00%</div>
+              <div class="sub">today's move</div>
+              <div class="sub" id="curStamp" style="margin-top:6px"></div>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <svg class="chart" id="chart" role="img" aria-label="Value over time"></svg>
+            <div class="tooltip" id="tooltip"></div>
+          </div>
+          <div class="note">Solid line is your value, dashed line is fair value. Green dots are runs, amber dots are races or PBs. Hover for any day.</div>
+        </div>
+
+        <div class="row" style="align-items:start">
+          <div class="card">
+            <h3>Why it moved today</h3>
+            <div class="breakdown" id="breakdown"></div>
+            <p class="note" id="breakdownNote" style="margin:12px 0 0"></p>
+          </div>
+          <div class="card">
+            <h3>Strava stamps</h3>
+            <ul class="stamps" id="stamps"></ul>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Formula weights</h3>
+          <div class="sliders" id="sliders"></div>
+          <button type="button" id="resetWeights" style="margin-top:14px">Reset to defaults</button>
+        </div>
+
+        <details>
+          <summary>The formula, in plain terms</summary>
+<pre>
+Your last 28 days set a FAIR VALUE. Each day your value is pulled toward it.
+Same routine → same fair value → flat line. Change the routine and it moves.
+
+  fairValue   = start × ( 0.5
+                        + volumeWeight      × (km per week, 28-day average) ÷ 10
+                        + consistencyBonus  × (run days per week, 28-day average) )
+                × (1 − penalty%) if you average under 2 run days a week
+
+  pull%       = pullRate × (fairValue ÷ value − 1) × 100
+                (closes a fraction of the gap every day, up or down)
+
+Temporary shocks on a run day — the pull unwinds them over the following weeks:
+  intensity%  = intensityWeight × (referencePace ÷ thisPace − 1) × 100, capped ±2
+                referencePace = your median pace, last 8 weeks, similar distance, same run type
+                paces are age-graded before comparing
+  event%      = eventBonus for a race, or a PB (fastest ever within ±10% of this distance, by ≥1%)
+                at most one every 14 days; no PB bonus for a lone run in 7 days
+
+On a day without a run (on top of fair value falling as the 28-day window empties):
+  idle        = consecutive days without a run
+  decay%      = 0 if idle ≤ restTolerance, otherwise −decayRate × (1 + 0.25 per extra day), max 3×
+
+  value_today = value_yesterday × (1 + move% ÷ 100), move capped at ±dailyCap
+
+Friends are scored with exactly the same formula and weights.
+</pre>
+        </details>
+
+        <div class="card">
+          <h3>Run log</h3>
+          <table id="runTable"><thead><tr><th>Date</th><th>Type</th><th class="num">km</th><th class="num">Pace</th><th class="num">Move</th><th></th></tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer><div class="wrap">RUNDEX prototype · no live data · not financial advice, not money, not a stock.</div></footer>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   RUNDEX — simulator logic
+   Everything the index depends on lives in computeHistory();
+   edit the maths there (or move the sliders) and the whole
+   timeline recalculates.
+   ============================================================ */
+
+/* ---------- defaults (slider-tunable) ---------- */
+const DEFAULT_WEIGHTS = {
+  volumeWeight:       0.25, // fair value: +25% of start per 10 km/week (28-day average)
+  consistencyBonus:   0.10, // fair value: +10% of start per run-day/week (28-day average)
+  consistencyPenalty: 15,   // % knocked off fair value when under 2 run days/week
+  pullRate:           0.08, // fraction of the gap to fair value closed each day
+  intensityWeight:    0.6,  // multiplier on pace-vs-self % (temporary shock)
+  decayRate:          0.5,  // extra % per idle day beyond tolerance; escalates
+  restTolerance:      2,    // free idle days in a row
+  eventBonus:         3.0,  // % one-off for race / PB (temporary shock)
+  dailyCap:           5.0   // ± cap on any single day
+};
+const WEIGHT_META = [
+  ['volumeWeight','Fair value per 10 km/week',0,0.6,0.01],
+  ['consistencyBonus','Fair value per run day/week',0,0.3,0.01],
+  ['consistencyPenalty','Under 2 days/week penalty %',0,40,1],
+  ['pullRate','Pull toward fair value',0.01,0.3,0.01],
+  ['intensityWeight','Intensity shock weight',0,2,0.05],
+  ['decayRate','Idle decay (escalates)',0,2,0.05],
+  ['restTolerance','Free rest days in a row',0,5,1],
+  ['eventBonus','PB / race shock',0,8,0.25],
+  ['dailyCap','Daily cap ±%',1,10,0.5]
+];
+
+/* ---------- state ---------- */
+let weights = {...DEFAULT_WEIGHTS};
+let runs = [];            // {date:'YYYY-MM-DD', km, min, hr, type}
+let simDate = null;       // 'YYYY-MM-DD' — the "today" of the simulation
+let profile = {ticker:'RORYH', start:1000, age:34, sex:'M'};
+let history = [];         // computed daily rows
+
+/* ---------- date helpers ---------- */
+const DAY = 86400000;
+const toISO = d => d.toISOString().slice(0,10);
+const parse = s => new Date(s + 'T00:00:00Z');
+const addDays = (s,n) => toISO(new Date(parse(s).getTime() + n*DAY));
+const fmtDate = s => { const d=parse(s); return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'}); };
+const todayISO = () => toISO(new Date());
+
+/* ---------- formatting ---------- */
+const fmtVal = v => Math.round(v).toLocaleString('en-GB');
+const fmtPct = p => Math.abs(p)<0.005 ? '0.00%' : (p>0?'▲':'▼') + Math.abs(p).toFixed(2) + '%';
+const fmtPace = (km,min) => { const s=Math.round(min*60/km); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
+const cls = p => p>0.0001?'up':p<-0.0001?'down':'flat';
+
+/* ---------- age grading ----------
+   Simple, monotonic approximation: performance peaks ~30 and
+   declines ~0.7%/yr after. Paces are converted to a "30-year-old
+   equivalent" before comparing. Women get a modest factor so that
+   cross-sex comparisons are closer to parity.
+   Because the index compares a runner with themselves, this only
+   matters when comparing two runners' intensity moves. */
+function ageFactor(age, sex){
+  let f = age > 30 ? 1 - 0.007*(age-30) : (age < 20 ? 1 - 0.01*(20-age) : 1);
+  if (sex === 'F') f *= 0.89;
+  return Math.max(0.5, f);
+}
+
+/* ============================================================
+   computeHistory — THE index. Returns one row per day from the
+   first run to endDate.
+
+   Model: your last 28 days of running set a FAIR VALUE. Each day
+   the value is pulled a fraction of the way toward it. Same routine
+   → same fair value → flat line. Races, PBs and a fast day are
+   temporary shocks that the pull later unwinds. Going idle both
+   lowers fair value (the 28-day window empties) and adds decay.
+   ============================================================ */
+function computeHistory(runs, w, profile, endDate){
+  const sorted = [...runs].filter(r=>r.date<=endDate).sort((a,b)=>a.date<b.date?-1:1);
+  if (!sorted.length) return [];
+  const byDate = {};
+  sorted.forEach(r=>{ (byDate[r.date] ||= []).push(r); });
+  const af = ageFactor(profile.age, profile.sex);
+  const paceOf = r => (r.min/r.km) * af;           // age-graded min/km
+
+  let value = profile.start, lastPB = null;
+  const rows = [];
+  let d = sorted[0].date;
+  const end = endDate;
+  const kmBetween = (from,to) => sorted.filter(r=>r.date>=from && r.date<to).reduce((s,r)=>s+r.km,0);
+  const runDaysBetween = (from,to) => new Set(sorted.filter(r=>r.date>=from && r.date<to).map(r=>r.date)).size;
+
+  while (d <= end){
+    const todays = byDate[d] || [];
+    const c = {fair:0,intensity:0,event:0,decay:0};
+    const notes = [];
+
+    // ---- fair value from the last 28 days (shorter window at the start) ----
+    const spanDays = Math.min(28, Math.round((parse(d)-parse(sorted[0].date))/DAY)+1);
+    const from = addDays(d,-(spanDays-1));
+    const weeks = Math.max(7, spanDays)/7;   // never extrapolate from less than a week
+    const wkKm = kmBetween(from, addDays(d,1))/weeks;
+    const daysWk = runDaysBetween(from, addDays(d,1))/weeks;
+    let fair = profile.start * (0.5 + w.volumeWeight*wkKm/10 + w.consistencyBonus*daysWk);
+    let penalised = false;
+    if (daysWk < 2 && spanDays >= 14){ fair *= (1 - w.consistencyPenalty/100); penalised = true; }
+    c.fair = w.pullRate * (fair/value - 1) * 100;
+    c.note = `fair value ${fmtVal(fair)} (${wkKm.toFixed(0)} km/wk, ${daysWk.toFixed(1)} days/wk${penalised?', under 2 days/wk penalty':''})`;
+
+    if (todays.length){
+      const weekStart = addDays(d,-6);
+      const runDays7 = runDaysBetween(weekStart, addDays(d,1));
+      for (const r of todays){
+        // intensity: vs median pace at similar distance over last 56 days, like for like
+        let similar = sorted.filter(x=>x.date<d && x.date>=addDays(d,-56) && Math.abs(x.km-r.km)/r.km<=0.3);
+        const sameType = similar.filter(x=>x.type===r.type); if (sameType.length>=2) similar = sameType;
+        let intensity = 0;
+        if (similar.length){
+          const paces = similar.map(paceOf).sort((a,b)=>a-b);
+          const ref = paces[Math.floor(paces.length/2)];
+          intensity = (ref/paceOf(r) - 1) * 100;
+        }
+        c.intensity += Math.max(-2, Math.min(2, intensity)) * w.intensityWeight;
+
+        // event: race, or PB (fastest at ±10% distance by ≥1%), one per 14 days, none for a lone run
+        const comparable = sorted.filter(x=>x.date<d && Math.abs(x.km-r.km)/r.km<=0.1 && x.km>=3);
+        const isPB = comparable.length>=2 && paceOf(r) < Math.min(...comparable.map(paceOf))*0.99;
+        const cooled = !lastPB || d >= addDays(lastPB,14);
+        if (r.type==='race'){ c.event += w.eventBonus; notes.push('race'); lastPB = d; }
+        else if (isPB && cooled && runDays7 >= 2){ c.event += w.eventBonus; notes.push('PB at ~'+r.km.toFixed(0)+' km'); lastPB = d; }
+        else if (isPB) notes.push(runDays7<2 ? 'PB, but no bonus for a lone run' : 'PB, but bonus on 14-day cooldown');
+      }
+      if (runDays7 <= 1 && spanDays >= 14) notes.push('only run in 7 days');
+    } else {
+      let idle = 0, back = d;
+      while (back >= sorted[0].date && !(byDate[back])) { idle++; back = addDays(back,-1); }
+      if (idle > w.restTolerance) {
+        const esc = Math.min(3, 1 + 0.25*(idle - w.restTolerance - 1));
+        c.decay -= w.decayRate * esc; notes.push(`idle day ${idle} in a row (first ${w.restTolerance} free, ×${esc.toFixed(2)})`);
+      } else notes.push(`rest day ${idle} in a row — free`);
+    }
+
+    let move = c.fair + c.intensity + c.event + c.decay;
+    const capped = Math.abs(move) > w.dailyCap;
+    move = Math.max(-w.dailyCap, Math.min(w.dailyCap, move));
+    if (capped) notes.push('capped at ±'+w.dailyCap+'%');
+    value = value * (1 + move/100);
+
+    rows.push({date:d, value, move, fair, contrib:c, runs:todays, notes,
+      stamp: todays.length ? `RUNDEX · ${profile.ticker} ${fmtVal(value)} ${fmtPct(move)}` : null});
+    d = addDays(d,1);
+  }
+  return rows;
+}
+
+/* ============================================================
+   Sample data generators (seeded so presets are repeatable)
+   ============================================================ */
+function rng(seed){ let s=seed; return ()=>{ s=(s*1664525+1013904223)%4294967296; return s/4294967296; }; }
+const jitter = (r,base,pct) => base*(1+(r()*2-1)*pct);
+
+/* genPattern: a weekly schedule repeated for `weeks` weeks from `start`.
+   offsets: [dayOfWeek, km, pace(min/km), type, probability?]
+   quiet: week indices where only the first offset is run
+   races: [{week, day, km, pace}] */
+function genPattern(o){
+  const r = rng(o.seed); const out=[];
+  for (let wk=0; wk<o.weeks; wk++){
+    const ws = addDays(o.start, wk*7); const improve = 1 - wk*(o.improve ?? 0.005);
+    const sched = (o.quiet||[]).includes(wk) ? [o.offsets[0]] : o.offsets;
+    for (const [day,km,pace,type,prob] of sched){
+      if (prob!==undefined && r()>prob) continue;
+      const k = jitter(r,km,0.1); out.push({date:addDays(ws,day),km:+k.toFixed(1),min:Math.round(k*jitter(r,pace,0.025)*improve),type:type||'easy'});
+    }
+    for (const rc of (o.races||[])) if (rc.week===wk){
+      const i = out.findIndex(x=>x.date===addDays(ws,rc.day)); if (i>=0) out.splice(i,1);
+      out.push({date:addDays(ws,rc.day),km:rc.km,min:Math.round(rc.km*rc.pace*improve),type:'race'});
+    }
+  }
+  return out;
+}
+const SAMPLE_START = () => addDays(todayISO(),-55);   // 8 weeks ending today
+const FRIEND_WEEKS = 8 + 26;                           // friends keep running 26 weeks into the future
+
+function genDefault(){ return genPattern({seed:42,start:SAMPLE_START(),weeks:8,
+  offsets:[[0,7,5.6,'easy'],[2,8,4.9,'tempo'],[4,5.5,5.6,'easy'],[6,14,5.9,'long']],
+  quiet:[4], races:[{week:6,day:6,km:10,pace:4.6}], improve:0.006}); }
+function genConsistent(){ return genPattern({seed:7,start:SAMPLE_START(),weeks:8,
+  offsets:[[0,7,5.4],[1,6,5.5],[3,8,4.9,'tempo'],[5,9,5.4]]}); }
+function genWeekend(){ return genPattern({seed:99,start:SAMPLE_START(),weeks:8,
+  offsets:[[5,16,6.1,'long'],[6,8,5.8,'easy',0.6]]}); }
+function genComeback(){
+  // 2 light weeks, 3 weeks off, then a careful build
+  const r=rng(2024); const out=[]; const start=SAMPLE_START();
+  const plan=[[3,4,6.2],[3,5,6.1],[0],[0],[0],[2,3,6.4],[3,4.5,6.2],[4,6,6.0]];
+  plan.forEach((p,wk)=>{ const ws=addDays(start,wk*7); const [n,km,pace]=p; if(!n) return;
+    [0,2,4,6].slice(0,n).forEach(o=>{ const k=jitter(r,km,0.1); out.push({date:addDays(ws,o),km:+k.toFixed(1),min:Math.round(k*jitter(r,pace,0.03)),type:'easy'}); });
+  });
+  return out;
+}
+
+/* Friends: fixed runners scored by the same formula. Generated once, far into
+   the future, so they keep running as you advance the sim clock. */
+const FRIENDS = [
+  {ticker:'JESSM', age:29, sex:'F', label:'Consistent, 4 days a week',
+   gen:()=>genPattern({seed:11,start:SAMPLE_START(),weeks:FRIEND_WEEKS,offsets:[[0,7,5.4],[1,6,5.5],[3,8,4.9,'tempo'],[5,9,5.4]],improve:0.003})},
+  {ticker:'TOMK', age:41, sex:'M', label:'Racer, periodised',
+   gen:()=>genPattern({seed:23,start:SAMPLE_START(),weeks:FRIEND_WEEKS,offsets:[[1,8,5.0],[3,10,4.6,'tempo'],[5,6,5.3],[6,18,5.5,'long']],quiet:[8,17,26],races:[{week:7,day:6,km:21.1,pace:4.5},{week:16,day:6,km:10,pace:4.2},{week:25,day:6,km:42.2,pace:4.8}],improve:0.004})},
+  {ticker:'AMIRA', age:36, sex:'F', label:'Weekend warrior',
+   gen:()=>genPattern({seed:5,start:SAMPLE_START(),weeks:FRIEND_WEEKS,offsets:[[5,15,6.0,'long'],[6,8,5.7,'easy',0.6]],improve:0.002})},
+  {ticker:'KATE', age:52, sex:'F', label:'Streaker, short and often',
+   gen:()=>genPattern({seed:77,start:SAMPLE_START(),weeks:FRIEND_WEEKS,offsets:[[0,5,6.1],[1,5,6.1],[2,5,6.1],[3,5,6.1],[4,5,6.1],[5,8,6.0]],quiet:[5,19],improve:0.002})},
+  {ticker:'DEV', age:27, sex:'M', label:'On and off',
+   gen:()=>genPattern({seed:31,start:SAMPLE_START(),weeks:FRIEND_WEEKS,offsets:[[1,6,5.2],[4,7,5.1,'tempo',0.7],[6,12,5.6,'long',0.7]],quiet:[2,3,9,10,14,21,22],improve:0.002})}
+].map(f=>({...f, runs:f.gen()}));
+
+const PRESETS = {default:genDefault, consistent:genConsistent, weekend:genWeekend, comeback:genComeback};
+
+/* ============================================================
+   Rendering
+   ============================================================ */
+const $ = id => document.getElementById(id);
+
+function recompute(){
+  profile.ticker = ($('ticker').value || 'RUNNER').toUpperCase();
+  profile.start = +$('startValue').value || 1000;
+  profile.age = +$('age').value || 30;
+  profile.sex = $('sex').value;
+  history = computeHistory(runs, weights, profile, simDate);
+  render();
+}
+
+function render(){
+  const last = history[history.length-1];
+  $('simDate').textContent = fmtDate(simDate) + ' ' + parse(simDate).getUTCFullYear();
+  $('curTicker').textContent = profile.ticker;
+  if (!last){ $('curValue').textContent = fmtVal(profile.start); $('curChange').textContent='–'; return; }
+  $('curValue').textContent = fmtVal(last.value);
+  const ch = $('curChange'); ch.textContent = fmtPct(last.move); ch.className = 'num '+cls(last.move);
+  $('curStamp').textContent = last.stamp || (last.runs.length? '' : 'no run today — nothing stamped');
+  renderChart(); renderBreakdown(last); renderStamps(); renderTable(); renderBoard();
+}
+
+function renderBoard(){
+  const rowsFor = h => { if(!h.length) return null; const last=h.at(-1); const wk=h.at(-8)||h[0];
+    const last7 = h.slice(-7).filter(r=>r.runs.length).length;
+    return {value:last.value, today:last.move, week:(last.value/wk.value-1)*100, runs7:last7}; };
+  const entries = FRIENDS.map(f=>({ticker:f.ticker,label:f.label,me:false,...rowsFor(computeHistory(f.runs,weights,{ticker:f.ticker,start:1000,age:f.age,sex:f.sex},simDate))}));
+  const mine = rowsFor(history); if (mine) entries.push({ticker:profile.ticker,label:'you',me:true,...mine});
+  entries.sort((a,b)=>b.value-a.value);
+  $('board').querySelector('tbody').innerHTML = entries.map((e,i)=>`<tr class="${e.me?'me':''}">
+    <td class="num">${i+1}</td><td class="num">${e.ticker}</td><td class="label">${e.label}</td>
+    <td class="num">${fmtVal(e.value)}</td><td class="num ${cls(e.today)}">${fmtPct(e.today)}</td>
+    <td class="num ${cls(e.week)}">${fmtPct(e.week)}</td><td class="num">${e.runs7}</td></tr>`).join('');
+}
+
+function renderBreakdown(row){
+  const c = row.contrib;
+  const items = [['Pull to fair value',c.fair],['Intensity',c.intensity],['Event',c.event],['Decay',c.decay]];
+  const max = Math.max(0.5, ...items.map(i=>Math.abs(i[1])));
+  $('breakdown').innerHTML = items.map(([n,v])=>{
+    const wpct = Math.abs(v)/max*50; const side = v>=0 ? `left:50%;width:${wpct}%` : `left:${50-wpct}%;width:${wpct}%`;
+    return `<div>${n}</div><div class="bar"><i class="${v>=0?'up':'down'}" style="${side}"></i></div><div class="num ${cls(v)}" style="text-align:right">${v>=0?'+':''}${v.toFixed(2)}%</div>`;
+  }).join('') + `<div style="border-top:1px solid var(--line);padding-top:6px"><b>Total</b></div><div></div><div class="num ${cls(row.move)}" style="text-align:right;border-top:1px solid var(--line);padding-top:6px"><b>${row.move>=0?'+':''}${row.move.toFixed(2)}%</b></div>`;
+  $('breakdownNote').textContent = [c.note, ...row.notes].filter(Boolean).join(' · ');
+}
+
+function renderStamps(){
+  const list = history.filter(r=>r.stamp).slice(-30).reverse();
+  $('stamps').innerHTML = list.map(r=>`<li><span class="muted">${fmtDate(r.date)}</span><span class="${cls(r.move)}">${r.stamp}</span></li>`).join('') || '<li class="muted">No runs yet — add one.</li>';
+}
+
+function renderTable(){
+  const moveByDate = Object.fromEntries(history.map(r=>[r.date,r.move]));
+  const sorted = [...runs].sort((a,b)=>a.date<b.date?1:-1);
+  $('runTable').querySelector('tbody').innerHTML = sorted.map((r,i)=>`<tr>
+    <td class="num">${fmtDate(r.date)}</td><td><span class="tag ${r.type}">${r.type}</span></td>
+    <td class="num">${r.km.toFixed(1)}</td><td class="num">${fmtPace(r.km,r.min)}</td>
+    <td class="num ${cls(moveByDate[r.date]||0)}">${fmtPct(moveByDate[r.date]||0)}</td>
+    <td><button type="button" data-del="${runs.indexOf(r)}" aria-label="Delete run" style="padding:2px 8px">×</button></td></tr>`).join('');
+}
+
+/* ---------- chart (hand-rolled SVG, no library) ---------- */
+function renderChart(){
+  const svg = $('chart'); const W = svg.clientWidth || 700, H = 280, pl=48, pr=12, pt=14, pb=28;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  if (history.length<2){ svg.innerHTML=''; return; }
+  const vals = history.map(r=>r.value).concat(history.map(r=>r.fair));
+  let lo = Math.min(...vals), hi = Math.max(...vals); const pad=(hi-lo)*0.12||10; lo-=pad; hi+=pad;
+  const x = i => pl + (i/(history.length-1))*(W-pl-pr);
+  const y = v => pt + (1-(v-lo)/(hi-lo))*(H-pt-pb);
+  let out='';
+  // grid + y labels
+  for (let g=0; g<=4; g++){ const v=lo+(hi-lo)*g/4; out+=`<line class="grid" x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${pl-6}" y="${y(v)+4}" text-anchor="end">${fmtVal(v)}</text>`; }
+  // x labels every ~2 weeks
+  const step = Math.max(1, Math.round(history.length/5));
+  for (let i=0;i<history.length;i+=step) out+=`<text class="axis" x="${x(i)}" y="${H-8}" text-anchor="middle">${fmtDate(history[i].date)}</text>`;
+  // area + line
+  const pts = history.map((r,i)=>`${x(i)},${y(r.value)}`).join(' ');
+  out+=`<polygon class="area" points="${x(0)},${y(lo)} ${pts} ${x(history.length-1)},${y(lo)}"/>`;
+  out+=`<polyline class="fair" points="${history.map((r,i)=>`${x(i)},${y(r.fair)}`).join(' ')}"/>`;
+  out+=`<polyline class="line" points="${pts}"/>`;
+  history.forEach((r,i)=>{ if(r.runs.length){ const race=r.runs.some(q=>q.type==='race'||r.notes.some(n=>n.startsWith('PB'))); out+=`<circle class="${race?'dot-race':'dot-run'}" cx="${x(i)}" cy="${y(r.value)}" r="${race?5:3}"/>`; } });
+  out+=`<line id="cursor" class="cursor" y1="${pt}" y2="${H-pb}" x1="-10" x2="-10"/>`;
+  svg.innerHTML = out;
+  // hover
+  const tip = $('tooltip');
+  svg.onmousemove = e => {
+    const rect = svg.getBoundingClientRect(); const mx = (e.clientX-rect.left)*(W/rect.width);
+    const i = Math.max(0, Math.min(history.length-1, Math.round((mx-pl)/(W-pl-pr)*(history.length-1))));
+    const r = history[i]; const cur = svg.querySelector('#cursor'); cur.setAttribute('x1',x(i)); cur.setAttribute('x2',x(i));
+    tip.style.display='block'; tip.style.left=(e.clientX-rect.left+12)+'px'; tip.style.top=(e.clientY-rect.top-10)+'px';
+    tip.innerHTML = `${fmtDate(r.date)} · ${fmtVal(r.value)} <span class="${cls(r.move)}">${fmtPct(r.move)}</span> · fair ${fmtVal(r.fair)}${r.runs.length?'<br>'+r.runs.map(q=>q.km.toFixed(1)+' km '+q.type+' @ '+fmtPace(q.km,q.min)).join(', '):'<br>no run'}`;
+  };
+  svg.onmouseleave = () => { tip.style.display='none'; svg.querySelector('#cursor').setAttribute('x1',-10); svg.querySelector('#cursor').setAttribute('x2',-10); };
+}
+
+/* ---------- sliders ---------- */
+function buildSliders(){
+  $('sliders').innerHTML = WEIGHT_META.map(([k,name,min,max,step])=>`
+    <div><label for="w_${k}">${name} <span id="wv_${k}">${weights[k]}</span></label>
+    <input type="range" id="w_${k}" min="${min}" max="${max}" step="${step}" value="${weights[k]}" data-key="${k}"></div>`).join('');
+  $('sliders').querySelectorAll('input').forEach(inp=>inp.addEventListener('input',e=>{
+    weights[e.target.dataset.key] = +e.target.value; $('wv_'+e.target.dataset.key).textContent = e.target.value; recompute();
+  }));
+}
+
+/* ---------- ticker tape + hero ---------- */
+function buildTape(){
+  const names=[['RORYH',1240,1.2],['JESSM',980,-0.8],['TOMK',1515,3.4],['AMIRA',1102,0.3],['DEV',870,-2.1],['KATE',1330,0.0],['SAMJ',1065,0.9],['LIN',1410,-0.4]];
+  const html = names.map(([n,v,p])=>`<span>${n} ${fmtVal(v)} <b class="${cls(p)}">${fmtPct(p)}</b></span>`).join('');
+  $('tape').innerHTML = html + html;
+}
+function heroSettle(){
+  // one orchestrated moment: the hero value counts from 1,000 to the sample runner's current value
+  const target = history.length ? history[history.length-1].value : 1240;
+  const move = history.length ? history[history.length-1].move : 1.2;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const el=$('heroValue'), ch=$('heroChange');
+  ch.textContent = fmtPct(move); ch.className='big-change '+cls(move);
+  $('heroStamp').textContent = `RUNDEX · ${profile.ticker} ${fmtVal(target)} ${fmtPct(move)}`;
+  if (reduce){ el.textContent=fmtVal(target); return; }
+  const t0=performance.now(), dur=1400;
+  (function tick(t){ const k=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-k,3); el.textContent=fmtVal(1000+(target-1000)*e); if(k<1) requestAnimationFrame(tick); })(t0);
+}
+
+/* ---------- events ---------- */
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.style.display='block'; clearTimeout(t._h); t._h=setTimeout(()=>t.style.display='none',2200); }
+
+function loadPreset(name){
+  runs = PRESETS[name](); simDate = runs.reduce((m,r)=>r.date>m?r.date:m, runs[0].date);
+  document.querySelectorAll('[data-preset]').forEach(b=>b.classList.toggle('active', b.dataset.preset===name));
+  $('rDate').value = simDate; recompute();
+}
+
+document.querySelectorAll('[data-preset]').forEach(b=>b.addEventListener('click',()=>loadPreset(b.dataset.preset)));
+['ticker','startValue','age','sex'].forEach(id=>$(id).addEventListener('input',recompute));
+$('advDay').addEventListener('click',()=>{ simDate=addDays(simDate,1); $('rDate').value=simDate; recompute(); });
+$('advWeek').addEventListener('click',()=>{ simDate=addDays(simDate,7); $('rDate').value=simDate; recompute(); });
+$('resetWeights').addEventListener('click',()=>{ weights={...DEFAULT_WEIGHTS}; buildSliders(); recompute(); toast('Weights reset'); });
+$('runForm').addEventListener('submit',e=>{
+  e.preventDefault();
+  const r={date:$('rDate').value, km:+$('rKm').value, min:+$('rMin').value, type:$('rType').value, hr:$('rHr').value?+$('rHr').value:null};
+  if(!r.date||!(r.km>0)||!(r.min>0)){ toast('Enter a date, distance and time'); return; }
+  runs.push(r); if (r.date>simDate) simDate=r.date; recompute();
+  const row=history.find(h=>h.date===r.date); toast(row? row.stamp : 'Run added');
+});
+$('runTable').addEventListener('click',e=>{ const i=e.target.dataset.del; if(i!==undefined){ runs.splice(+i,1); if(runs.length) recompute(); else { history=[]; renderTable(); renderStamps(); } } });
+$('signupForm').addEventListener('submit',e=>{
+  e.preventDefault(); const em=$('signupEmail').value.trim(); if(!em) return;
+  try{ const list=JSON.parse(localStorage.getItem('rundex_signups')||'[]'); list.push({email:em,at:new Date().toISOString()}); localStorage.setItem('rundex_signups',JSON.stringify(list)); }catch(_){}
+  $('signupNote').textContent = `Thanks — ${em} is on the list.`; $('signupEmail').value='';
+});
+window.addEventListener('resize',()=>{ if(history.length) renderChart(); });
+
+/* ============================================================
+   STRAVA CONNECTION
+   ============================================================ */
+
+const STRAVA_CLIENT_ID = "297015";
+
+document
+  .getElementById("stravaConnect")
+  .addEventListener("click", () => {
+
+    window.location.href =
+      "https://www.strava.com/oauth/authorize" +
+      "?client_id=297015" +
+      "&response_type=code" +
+      "&approval_prompt=force" +
+      "&scope=read,activity:read_all,activity:write" +
+      "&redirect_uri=http://localhost:8080";
+
+  });
+
+/* ---------- boot ---------- */
+buildTape(); buildSliders(); loadPreset('default'); heroSettle();
+</script>
+</body>
+</html>
